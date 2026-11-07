@@ -13,8 +13,7 @@
   html, body { margin: 0; height: 100%; background: #0E1A13; color: #fff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
   video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   #tren { position: fixed; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px; background: rgba(14, 26, 19, .55); font-size: 14px; font-weight: 700; }
-  #noi { padding: 5px 10px; border-radius: 20px; background: #7A5200; font-size: 12px; white-space: nowrap; }
-  #noi.ok { background: var(--xanh2); }
+  #noi { padding: 5px 10px; border-radius: 20px; background: var(--xanh2); font-size: 12px; white-space: nowrap; }
   #khung { position: fixed; left: 7%; right: 7%; top: 16%; height: 44%; border: 3px solid #fff; border-radius: 18px; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .38); transition: border-color .12s; }
   #khung.doc { border-color: #A3E635; }
   #duoi { position: fixed; left: 0; right: 0; bottom: 0; max-height: 40%; overflow: auto; padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0px)); border-radius: 20px 20px 0 0; background: #fff; color: var(--chu); }
@@ -38,12 +37,13 @@
   #mo p { margin: 0; max-width: 340px; font-size: 15px; line-height: 1.5; color: #CFE8D6; }
   #mo p.loi { color: #FECACA; font-weight: 700; }
   #mo button { min-height: 52px; min-width: 220px; padding: 0 22px; border: 0; border-radius: 14px; background: #A3E635; color: #14321F; font-size: 17px; font-weight: 800; font-family: inherit; }
+  #mo button.phu { background: transparent; color: #D9F99D; border: 1.5px solid #D9F99D; }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <video id="v" playsinline muted></video>
-<div id="tren"><span id="ten">Quét QR kho</span><span id="noi">Chưa nối với app</span></div>
+<div id="tren"><span id="ten">Quét QR kho</span><span id="noi" hidden>Đã nối với app</span></div>
 <div id="khung"></div>
 <div id="duoi">
   <div id="dem"><b id="so">0</b><span>mã</span></div>
@@ -59,6 +59,8 @@
   <h1 id="moTieuDe">Quét QR kho</h1>
   <p id="moChu">Trang này chỉ đọc mã bằng camera. Mã chỉ gửi về app kho khi bấm Xong.</p>
   <button id="batDau" type="button">Bắt đầu quét</button>
+  <button id="veApp" type="button" hidden>Quay lại app</button>
+  <button id="quetTiep" class="phu" type="button" hidden>Quét tiếp</button>
 </div>
 <script>/**
  * Minified by jsDelivr using Terser v5.39.0.
@@ -73,7 +75,7 @@
   var HOP_LE = /^https:\/\/n-[a-z0-9-]+-script\.googleusercontent\.com$/; /*THU_ORIGIN*/
   var KHOA = 'wmsQuetQr', RONG_TOI_DA = 1000, NGHI = 90;
   var v = document.getElementById('v'), khung = document.getElementById('khung');
-  var ma = [], chay = false, dong = null, app = null, nguonApp = '', mot = false, luot = 0, dangGui = false, denBat = false, may = null;
+  var ma = [], chay = false, dong = null, app = null, nguonApp = '', mot = '', luot = 0, dangGui = false, denBat = false, may = null;
   var cv = document.createElement('canvas'), c = cv.getContext('2d', { willReadFrequently: true }), nho = document.createElement('canvas'), nc = nho.getContext('2d', { willReadFrequently: true }), am = null;
   function $(id) { return document.getElementById(id); }
   try { ma = JSON.parse(sessionStorage.getItem(KHOA) || '[]'); if (!Array.isArray(ma)) ma = []; } catch (x) {}
@@ -105,7 +107,7 @@
   function them_(s) {
     if (!s || ma.indexOf(s) >= 0) return;
     ma.unshift(s); luu_(); ve_(); $('cuoi').textContent = 'Vừa đọc: ' + nhan_(s); bip_();
-    if (mot && laTemO_(s)) xong_();
+    if ((mot === 'o' && laTemO_(s)) || (mot === 'k' && !laTemO_(s))) xong_();
   }
   function vung_() { // đổi khung ngắm trên màn hình thành vùng trên hình camera
     var W = innerWidth, H = innerHeight, vw = v.videoWidth, vh = v.videoHeight, k = Math.max(W / vw, H / vh), ox = (vw * k - W) / 2, oy = (vh * k - H) / 2, r = khung.getBoundingClientRect();
@@ -178,31 +180,42 @@
       $('moChu').textContent = x && x.name === 'NotAllowedError' ? 'Chưa cấp quyền camera. Bấm biểu tượng ổ khóa cạnh địa chỉ trang, cho phép Camera rồi thử lại.' : 'Không mở được camera trên máy này.';
     }
   }
-  function saoChep_() {
-    var chu = ma.join('\n'), bao = function (ok) { $('moTieuDe').textContent = ok ? 'Đã sao chép ' + ma.length + ' mã' : 'Chưa gửi được'; $('moChu').className = ''; $('moChu').textContent = ok ? 'Quay lại app, mở mục Dán mã rồi dán vào.' : 'Quay lại app rồi quét lại bằng nút camera trong app.'; };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(chu).then(function () { bao(true); }, function () { bao(false); }); else bao(false);
-  }
   function xong_() {
     if (dangGui || !ma.length) return;
-    dangGui = true; tatCam_(); $('batDau').hidden = true; $('mo').hidden = false; $('moTieuDe').textContent = 'Đang gửi về app'; $('moChu').className = ''; $('moChu').textContent = '';
-    if (!app) { dangGui = false; saoChep_(); return; }
-    app.postMessage({ t: 'g88-ma', ma: ma.slice().reverse() }, nguonApp);
-    xong_.h = setTimeout(function () { dangGui = false; saoChep_(); }, 1500);
+    dangGui = true; tatCam_();
+    var ds = ma.slice().reverse(), n = ds.length;
+    $('mo').hidden = false; $('batDau').hidden = true; $('veApp').hidden = false; $('quetTiep').hidden = false;
+    $('moTieuDe').textContent = 'Đã lưu ' + n + ' mã'; $('moChu').className = ''; $('moChu').textContent = 'Bấm Quay lại app. Trong app bấm Dán mã vừa quét nếu mã chưa tự vào.';
+    if (app) { try { app.postMessage({ t: 'g88-ma', ma: ds }, nguonApp); } catch (x) {} }
+    var het = function (ok) {
+      dangGui = false;
+      if (!ok) { $('moChu').className = 'loi'; $('moChu').textContent = 'Máy chưa cho lưu bộ nhớ tạm. Mã đang ở danh sách, bấm Quét tiếp để xem lại.'; }
+      if (app) { ma = []; luu_(); ve_(); window.close(); } // app đang chờ thì tự về
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ds.join('\n')).then(function () { het(true); }, function () { het(!!app); }); else het(!!app);
   }
-  window.addEventListener('message', function (e) {
-    if (!HOP_LE.test(e.origin) || !e.data) return;
-    if (e.data.t === 'g88-mo') {
-      app = e.source; nguonApp = e.origin; mot = !!e.data.mot;
-      if (e.data.ten) { $('ten').textContent = String(e.data.ten).slice(0, 40); $('moTieuDe').textContent = String(e.data.ten).slice(0, 40); }
-      $('noi').textContent = 'Đã nối với app'; $('noi').className = 'ok';
-      app.postMessage({ t: 'g88-san' }, nguonApp);
-    } else if (e.data.t === 'g88-da-nhan' && e.origin === nguonApp) {
-      clearTimeout(xong_.h); dangGui = false; ma = []; luu_();
-      $('moTieuDe').textContent = 'Đã gửi về app'; $('moChu').textContent = 'Có thể đóng trang này.';
-      window.close();
-    }
-  });
+  function docCau_() { // app ghi nguồn, tên màn và cách dừng trên địa chỉ trang
+    var h = new URLSearchParams(location.hash.slice(1)), o = h.get('o') || '', t = h.get('t') || '', n = h.get('n') || '', cu = '';
+    nguonApp = HOP_LE.test(o) ? o : ''; app = nguonApp && window.opener ? window.opener : null; mot = h.get('m') || '';
+    if (t) { $('ten').textContent = t.slice(0, 40); $('moTieuDe').textContent = t.slice(0, 40); }
+    $('noi').hidden = !app;
+    try { cu = sessionStorage.getItem(KHOA + 'N') || ''; if (n) sessionStorage.setItem(KHOA + 'N', n); } catch (x) {}
+    if (n && n !== cu) { ma = []; luu_(); }
+    ve_();
+    if (app) { try { app.postMessage({ t: 'g88-san' }, nguonApp); } catch (x) {} }
+  }
+  function tuMo_() { // đã được phép camera thì mở luôn, khỏi bấm Bắt đầu
+    if (!navigator.permissions) return;
+    navigator.permissions.query({ name: 'camera' }).then(function (p) { if (p.state === 'granted') batCam_(); }).catch(function () {});
+  }
   $('batDau').onclick = batCam_;
+  $('veApp').onclick = function () {
+    window.close();
+    setTimeout(function () { $('moChu').className = ''; $('moChu').textContent = 'Nếu chưa về app, bấm nút lùi của điện thoại hoặc mũi tên ở góc trên.'; }, 400);
+  };
+  $('quetTiep').onclick = function () { $('veApp').hidden = true; $('quetTiep').hidden = true; $('batDau').hidden = false; batCam_(); };
+  document.addEventListener('pointerdown', function () { try { if (am) am.resume(); } catch (x) {} });
+  window.addEventListener('hashchange', function () { tatCam_(); $('mo').hidden = false; $('batDau').hidden = false; $('batDau').disabled = false; $('veApp').hidden = true; $('quetTiep').hidden = true; docCau_(); tuMo_(); });
   $('xong').onclick = xong_;
   $('dung').onclick = function () {
     if (chay) { chay = false; v.pause(); this.textContent = 'Tiếp tục'; } else { chay = true; v.play(); this.textContent = 'Tạm dừng'; vong_(); }
@@ -212,7 +225,7 @@
     denBat = !denBat; t.applyConstraints({ advanced: [{ torch: denBat }] }).catch(function () {});
   };
   window.addEventListener('pagehide', tatCam_);
-  ve_();
+  docCau_(); tuMo_();
 })();
 </script>
 </body>
